@@ -1,0 +1,40 @@
+    (*///////////////////////////////////////////////////////////////////////
+    
+                        100 MS tsükli blokk
+    
+    ////////////////////////////////////////////////////////////////////*)
+    //Konstantid
+    #pulside_arv_millimeetris := 3.345;
+    #Kerimise_pulside_arv_täispöördel := 360.0;
+    
+    //Jagamise pulsside arvutus
+    "Jagamise pulside vahe" := "Jagamise pulsid" - "Eelmise tsükli jagamise pulsid";
+    "Eelmise tsükli jagamise pulsid" := "Jagamise pulsid";
+    "Reaalne jagamise kiirus mm/s" := (("Jagamise pulside vahe" * #pulside_arv_millimeetris) * 10.0)/100.0; // 1s = 100ms * 10
+    
+    //Kerimise pulsside arvutus
+    "Kerimise pulside vahe" := "Kerimise pulsid" - "Eelmise tsükli kerimise pulsid";
+    "Eelmise tsükli kerimise pulsid" := "Kerimise pulsid";
+    "Reaalne kerimise kiirus rps" := ("Kerimise pulside vahe" / #Kerimise_pulside_arv_täispöördel) * 10.0; // 360.0 on pulside arv 1 pöördele
+    
+    //Juhul kui automaatrežiim on väljas, siis on jagamise kiirus 0.
+    IF "Automaatne režiim" = 1
+    THEN
+        "Nõutav jagamise kiirus mm/s" := ("Reaalne kerimise kiirus rps" * "Jagamise poteka väärtus");
+    ELSE
+        "Nõutav jagamise kiirus mm/s" := 0.0;
+    END_IF;
+    
+    //PID Arvutus
+    "Jagamine"(Setpoint := TRUNC_REAL("Nõutav jagamise kiirus mm/s"),
+               Input := TRUNC_REAL("Reaalne jagamise kiirus mm/s"),
+               Output => "PID väljund portaali kiirus");
+    
+    //Jagamine toimub vaid siis, kui trummel pöörleb
+    IF ("Jagamine paremale puldist" = 0 OR "Jagamine vasakule puldist" = 0)
+    THEN
+        IF "Reaalne kerimise kiirus rps" < 0.01 
+        THEN
+            "PID väljund portaali kiirus" := 0.0;
+        END_IF;
+    END_IF;
