@@ -1,0 +1,268 @@
+////////////////////////////////////////////////////////////////////
+//                      Automaatjuhtimine
+////////////////////////////////////////////////////////////////////
+
+//Jagamise suuna valik puldist ja lõpplülitidega
+#tolerants := 5.0;
+#deadband := 4.0;
+#offset := 1.0;
+IF ("Vasak jagamise lõpplüliti" = 1 AND "Parem jagamise lõpplüliti" = 0)
+    OR ("Jagamise suund vasakule puldist" = 1 AND "Jagamise suund paremale puldist" = 0)
+THEN
+    "Vaheta vasakule (lamp)" := 1;
+    "Jagamine vasakule" := 1;
+    "Vaheta paremale (lamp)" := 0;
+    "Jagamine paremale" := 0;
+ELSIF ("Parem jagamise lõpplüliti" = 1 AND "Vasak jagamise lõpplüliti" = 0)
+    OR ("Jagamise suund paremale puldist" = 1 AND "Jagamise suund vasakule puldist" = 0)
+THEN
+    "Vaheta paremale (lamp)" := 1;
+    "Jagamine paremale" := 1;
+    "Vaheta vasakule (lamp)" := 0;
+    "Jagamine vasakule" := 0;
+END_IF;
+
+//Automaatse režiimi lamp ja bit
+IF "Automaatrežiim sisse puldist" = 1 AND "Automaatrežiim seisma puldist" = 1
+THEN
+    "Automaatrežiim aktiivne (lamp)" := 1;
+    "Automaatne režiim" := 1;
+ELSIF "Automaatrežiim seisma puldist" = 0
+    OR "Etteantud pikkus pole täis" = 1
+THEN
+    "Automaatrežiim aktiivne (lamp)" := 0;
+    "Automaatne režiim" := 0;
+END_IF;
+IF  "Automaatrežiim seisma puldist" = 1
+    AND "Automaatne režiim" = 1
+THEN
+    "Kerimine käima" := 1;
+    "Luba kerimine" := 1;
+    // "Tippimine" := 1;
+    "Muundur sisse" := 1;
+    "Liin seisma" := 0;
+ELSIF "Automaatrežiim seisma puldist" = 0
+    OR "Etteantud pikkus pole täis" =1
+    AND "Automaatne režiim" = 1
+THEN
+        "Liin seisma" := 1;
+        "Kerimine käima" := 0;
+        "Luba kerimine" := 0;
+        // "Tippimine" := 0;
+        "Muundur sisse" := 0;
+    ELSE
+        "Liin seisma" := 0;
+END_IF;
+
+//Automaatne jagamine
+IF "Automaatne režiim" = 1
+    AND "Jagamine paremale" = 1
+THEN
+    "Jagamise peakontaktor" := 1;
+    "Portaali kiirus" :=  ("PID väljund portaali kiirus" ) * -1.0;
+ELSIF "Automaatne režiim" = 1
+    AND "Jagamine vasakule" = 1
+THEN
+    "Jagamise peakontaktor" := 1;
+    "Portaali kiirus" :=  ("PID väljund portaali kiirus") * 1.0;
+END_IF;
+
+//Trumlivahetuse nupud
+IF "Vaheta paremale" = 1
+    AND "Vaheta vasakule" = 0
+    AND "Vahetus seisma" = 1
+THEN
+    "Vahetus paremale" := 1;
+    "Vahetus vasakule" := 0;
+    
+ELSIF "Vaheta vasakule" = 1
+    AND "Vaheta paremale" = 0
+    AND "Vahetus seisma" = 1
+THEN
+    "Vahetus vasakule" := 1;
+    "Vahetus paremale" := 0;
+    
+ELSIF "Vahetus seisma" = 0
+    OR ("Vaheta vasakule" = 1 AND "Vaheta paremale" = 1)
+THEN
+    "Vahetus vasakule" := 0;
+    "Vahetus paremale" := 0;
+    "Vasaku lõpplüliti mälu" := 0;
+    "Parema lõpplüliti mälu" := 0;
+    "Liikumine paremalt" := 0;
+    "Liikumine vasakult" := 0;
+END_IF;
+
+//Vilkuvad vahetuse nupud
+IF "Vahetus paremale" = 1
+THEN
+    "Vaheta paremale (lamp)" := "Clock_1Hz";
+    "Vaheta vasakule (lamp)" := 0;
+ELSIF "Vahetus vasakule" = 1
+THEN
+    "Vaheta vasakule (lamp)" := "Clock_1Hz";
+    "Vaheta paremale (lamp)" := 0;
+(*
+
+ELSE
+    "Vaheta paremale (lamp)" := 0;
+    "Vaheta vasakule (lamp)" := 0; *)
+END_IF;
+
+//Trumli olekud
+CASE "Andmevahetus liiniga"."Trumli täituvus" OF
+    0:
+        "Trummel on tühi" := 1;
+        "Trummel on töös" := 0;
+        "Trummel on täis" := 0;
+    1..99:
+        "Trummel on töös" := 1; // Statement section case 2 to 4
+        "Trummel on tühi" := 0;
+        "Trummel on täis" := 0;
+    100:
+        "Trummel on täis" := 1;
+        "Trummel on tühi" := 0;
+        "Trummel on töös" := 0;
+    ELSE  // Statement section ELSE
+        "Trumli täituvus on teadmata" := 1;
+        "Trummel on tühi" := 0;
+        "Trummel on töös" := 0;
+        "Trummel on täis" := 0;
+END_CASE;
+
+//Lõpplülitite mälu 
+IF "Vasak jagamise lõpplüliti" = 1
+THEN
+    "Vasaku lõpplüliti mälu" := 1;
+ELSIF "Parem jagamise lõpplüliti" = 1
+THEN
+    "Parema lõpplüliti mälu" := 1;
+END_IF;
+"IEC_Timer_0_DB".TON(IN:="Vasaku lõpplüliti mälu",
+                     PT:=t#1500ms,
+                     Q=>"Viitega_vasak_mälu");
+
+//Liikumise suuna määramine
+IF "Viitega_vasak_mälu" = 1
+    AND "Vasak jagamise lõpplüliti" = 1
+THEN
+    "Liikumine paremalt" := 1;
+    "Liikumine vasakult" := 0;
+    "Vasaku lõpplüliti mälu" := 0;
+ELSIF "Parema lõpplüliti mälu" = 1
+    AND "Parem jagamise lõpplüliti" = 1
+THEN
+    "Liikumine vasakult" := 1;
+    "Liikumine paremalt" := 0;
+    "Parema lõpplüliti mälu" := 0;
+END_IF;
+
+//Trumlite vahetus
+IF "II vastuvõtja sild" = 1
+THEN
+    //Tööpositsioonilt mahalaadimise positsiooni liikumine
+    IF "Vahetus paremale" = 1
+    THEN
+        IF "Jagamise maksimaalne ulatus" = 1
+        THEN
+            "Jagamise peakontaktor" := 1;
+            "Portaali kiirus" := -10.0;
+            
+        ELSIF "Jagamise maksimaalne ulatus" = 0
+        THEN
+            "Jagamise peakontaktor" := 0;
+            "Portaali kiirus" := 0;
+            "Vahetus paremale" := 0;
+
+        END_IF;
+    ELSIF "Vahetus vasakule" = 1
+    THEN
+        IF "Liikumine vasakult" = 0
+        THEN
+            "Jagamise peakontaktor" := 1;
+            "Portaali kiirus" := 10.0;
+        ELSIF "Liikumine vasakult" = 1
+        THEN
+            "Vahetus vasakule" := 0;
+            "Jagamise peakontaktor" := 0;
+            "Portaali kiirus" := 0;
+        END_IF;
+    END_IF;
+//Vasaku trumli vahetus   
+ELSE
+    // II vastuvõtja trumli liikumine reservist tööpositsiooni
+    IF "Vahetus vasakule" = 1
+    THEN
+        //Portaali liikumine külgsuunas
+        IF "Liikumine paremalt" = 0
+        THEN
+            "Jagamise peakontaktor" := 1;
+            "Portaali kiirus" := 50.0;
+            //Portaali peatamine
+        ELSIF "Liikumine paremalt" = 1
+        THEN
+            "Jagamise peakontaktor" := 0;
+            "Portaali kiirus" := 0;
+        END_IF;
+        
+        //Portaali üles tõstmine
+        IF "Pinolid ei ole üleval" = 1
+            AND "Portaal alla puldist" = 0
+            AND "Pinol alla puldist" = 0
+        THEN
+            "Pinol üles" := 1;
+            "Portaal üles" := 1;
+        END_IF;
+        //Portaali tõstmise peatamine
+        IF "Pinolid ei ole üleval" = 0
+        THEN
+            "Pinol üles" := 0;
+            "Portaal üles" := 0;
+        END_IF;
+        //Kui portaal on üleval ja on tööasendis, siis lõpeta vahetus
+        IF "Pinolid ei ole üleval" = 0
+            AND "Liikumine paremalt" = 1
+        THEN
+            "Vahetus vasakule" := 0;
+            "Vahetus paremale" := 0;
+            "Vasaku lõpplüliti mälu" := 0;
+            "Parema lõpplüliti mälu" := 0;
+            "Liikumine paremalt" := 0;
+            "Liikumine vasakult" := 0;
+        END_IF;
+
+    // II Vastuvõtja liikumine tööpositsioonilt mahalaadimispositsioonile
+    ELSIF "Vahetus paremale" = 1
+    THEN
+        //Liikumine kuni serva lõpplülitini
+        IF "Jagamise maksimaalne ulatus" = 0
+        THEN
+            "Jagamise peakontaktor" := 1;
+            "Portaali kiirus" := -50.0;
+            //Peatamine peale sihtkohta jõudmist
+        ELSIF "Jagamise maksimaalne ulatus" = 1
+        THEN
+            "Jagamise peakontaktor" := 0;
+            "Portaali kiirus" := 0;
+            "Vahetus vasakule" := 0;
+            "Vahetus paremale" := 0;
+            "Vasaku lõpplüliti mälu" := 0;
+            "Parema lõpplüliti mälu" := 0;
+            "Liikumine paremalt" := 0;
+            "Liikumine vasakult" := 0;
+        END_IF;
+    END_IF;
+END_IF;
+
+//Automaatne mälu tühjendus
+"IEC_Timer_0_DB_1".TON(IN:="Automaatne režiim" = 0,
+                          PT:=T#6S,
+                          Q=>"Mälu tühjendus");
+   IF "Mälu tühjendus" = 1
+       AND "Jagamise pulsid" > 0.0
+   THEN
+       "Jagamise pulsid" := 0;
+       "Eelmise tsükli jagamise pulsid" := 0;
+       "Kerimise pulsid" := 0;
+       "Eelmise tsükli kerimise pulsid" := 0;
+   END_IF;
