@@ -1,0 +1,125 @@
+//////////////////////////////////////////////////////////////////////
+//                        Liikumised puldist
+//////////////////////////////////////////////////////////////////////
+
+
+IF "Automaatrežiim seisma puldist" = 1 OR "Hädastop liinist" = 1
+THEN
+    //Pinolid kokku ja lahku
+    IF
+        "Pinolid lahku puldist" = 1
+        AND "Pinolid kokku puldist" = 0
+        AND "Pinolid laiali" = 1
+    THEN
+        "Pinolid lahku" := 1;
+        
+    ELSIF
+        "Pinolid kokku puldist" = 1
+        AND "Pinolid lahku puldist" = 0
+        AND "Pinolid koos" = 1
+    THEN
+        "Pinolid kokku" := 1;
+    ELSE
+        "Pinolid kokku" := 0;
+        "Pinolid lahku" := 0;
+    END_IF;
+    
+    //Portaal üles ja alla
+    IF "Portaal alla puldist" = 1
+        AND "Portaal üles puldist" = 0
+        AND "Pinolid ei ole all" = 1
+        AND "Pinol üles puldist" = 0
+    THEN
+        "Portaal alla" := 1;
+        "Pinol alla" := 1;
+    ELSIF
+        "Portaal üles puldist" = 1
+        AND "Portaal alla puldist" = 0
+        AND "Pinolid ei ole üleval" = 1
+        AND "Pinol alla puldist" = 0
+    THEN
+        "Portaal üles" := 1;
+        "Pinol üles" := 1;
+    ELSIF
+        "Pinol alla puldist" = 1
+        AND "Pinol üles puldist" = 0
+        AND "Portaal üles puldist" = 0
+        AND "Pinolid ei ole all" = 1
+        
+    THEN
+        "Pinol alla" := 1;
+    ELSIF "Pinol üles puldist" = 1
+        AND "Pinol alla puldist" = 0
+        AND "Portaal alla puldist" = 0
+        AND "Pinolid ei ole üleval" = 1
+    THEN
+        "Pinol üles" := 1;
+    ELSIF ("Portaal alla puldist" = 0
+        OR "Portaal üles puldist" = 0)
+        AND "Vahetus vasakule" = 0
+    THEN
+        "Portaal üles" := 0;
+        "Portaal alla" := 0;
+        "Pinol üles" := 0;
+        "Pinol alla" := 0;
+    END_IF;
+    
+    //Portaal vasakule ja paremale
+    IF "Jagamine vasakule puldist" = 1
+        AND "Jagamine paremale puldist" = 0
+    THEN
+        "Jagamise peakontaktor" := 1;
+        "Portaali kiirus" := 80.0;
+        
+    ELSIF "Jagamine paremale puldist" = 1
+        AND "Jagamine vasakule puldist" = 0
+        AND "Jagamise maksimaalne ulatus" = 0
+    THEN
+        "Jagamise peakontaktor" := 1;
+        "Portaali kiirus" := 85.0 * -1;
+    ELSIF "Jagamine vasakule puldist" = 0
+        AND "Jagamine paremale puldist" = 0
+        AND "Automaatne režiim" = 0
+        AND "Vahetus paremale" = 0
+        AND "Vahetus vasakule" = 0
+    THEN
+        "Jagamise peakontaktor" := 0;
+    END_IF;
+    //Kerimine puldist
+    IF "Automaatne režiim" = 0
+    THEN
+        IF "Tippimine puldist" = 1
+        THEN
+            "Kerimine käima" := 1;
+            "Luba kerimine" := 1;
+            // "Tippimine" := 1;
+            "Muundur sisse" := 1;
+        ELSE
+            "Kerimine käima" := 0;
+            "Luba kerimine" := 0;
+            "Tippimine" := 0;
+            "Muundur sisse" := 0;
+            
+        END_IF;
+    END_IF;
+    //OFF aegreleed peale tippimise kasutust
+    "IEC_Timer_0_DB_4".TOF(IN:="Luba kerimine",
+                           PT:=t#6s,
+                           Q=>"Kerimise ergutus",
+                           ET=>#kulunud_aeg);
+
+    "IEC_Timer_0_DB_5".TOF(IN:="Luba kerimine",
+                           PT:=t#60s,
+                           Q=> "Ventilaator sisse");
+
+ELSE
+    "Portaal alla" := 0;
+    "Portaal üles" := 0;
+    "Pinol üles" := 0;
+    "Pinol alla" := 0;
+    "Jagamise peakontaktor" := 0;
+    "Tippimine" := 0;
+    "Kerimine käima" := 0;
+    "Automaatrežiim aktiivne (lamp)" := 0;
+    "Kerimise ergutus" := 0;
+END_IF;
